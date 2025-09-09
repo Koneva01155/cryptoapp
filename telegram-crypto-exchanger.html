@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Crypto Exchange</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #000000;
+            --primary-card: #131313;
+            --secondary-card: #1c1c1c;
+            --border-color: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #8E8E93;
+            --accent-blue: #0A84FF;
+            --accent-green: #30D158;
+            --accent-red: #FF453A;
+            --accent-yellow: #FFD60A;
+            --accent-purple: #BF5AF2;
+        }
+        body {
+            background-color: var(--tg-theme-bg-color, var(--bg-color));
+            color: var(--tg-theme-text-color, var(--text-primary));
+            overscroll-behavior: none;
+        }
+        .btn-primary {
+            background-color: var(--tg-theme-button-color, var(--accent-blue));
+            color: var(--tg-theme-button-text-color, var(--text-primary));
+        }
+        html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Inter', sans-serif; }
+        #app { height: 100%; display: flex; flex-direction: column; }
+        .page {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            padding: 1.25rem; padding-bottom: 6rem; /* Space for nav bar */
+            overflow-y: auto; opacity: 0; visibility: hidden;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            transform: translateY(10px);
+            z-index: 1;
+        }
+        .page.active { opacity: 1; visibility: visible; transform: translateY(0); z-index: 2; }
+        .glass-card {
+            background: rgba(28, 28, 28, 0.7);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--border-color);
+            border-radius: 1.25rem;
+        }
+        .amount-input {
+            width: 100%; background: transparent; border: none; outline: none;
+            color: var(--text-primary); font-size: 2.25rem; line-height: 2.5rem; font-weight: 700;
+            padding: 0;
+            -moz-appearance: textfield;
+        }
+        .amount-input::-webkit-outer-spin-button, .amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .coin-pill {
+            display: flex; align-items: center; gap: 0.5rem;
+            background-color: var(--secondary-card); padding: 0.5rem 1rem 0.5rem 0.5rem;
+            border-radius: 9999px; cursor: pointer; transition: background-color 0.2s;
+        }
+        .coin-pill:hover { background-color: #2c2c2e; }
+        .coin-pill img { width: 2rem; height: 2rem; border-radius: 50%; }
+        .swap-icon {
+            width: 3rem; height: 3rem; border-radius: 50%;
+            background-color: var(--secondary-card); border: 4px solid var(--bg-color);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: transform 0.3s, background-color 0.2s;
+        }
+        .swap-icon:hover { background-color: #2c2c2e; }
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: rgba(22, 22, 22, 0.8);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border-top: 1px solid var(--border-color);
+            display: flex; justify-content: space-around;
+            padding: 0.5rem 0; padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+            z-index: 100;
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+            color: var(--text-secondary); padding: 0.5rem 1rem; transition: color 0.2s;
+        }
+        .nav-item.active { color: var(--accent-blue); }
+        #background-animation {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; overflow: hidden; background: #050211;
+        }
+        .gradient {
+            position: absolute; width: 50vmax; height: 50vmax;
+            border-radius: 50%; filter: blur(100px); opacity: 0.2;
+            animation: drift 20s infinite alternate ease-in-out;
+        }
+        .g1 { background: #0A84FF; top: -10%; left: -10%; animation-duration: 22s; }
+        .g2 { background: #BF5AF2; bottom: -15%; right: -15%; animation-duration: 25s; }
+        .g3 { background: #30D158; bottom: 30%; left: -5%; animation-duration: 18s; }
+        @keyframes drift {
+            from { transform: rotate(0deg) translateX(20px); }
+            to { transform: rotate(360deg) translateX(-20px); }
+        }
+        .support-topic {
+            background-color: var(--secondary-card);
+            border: 1px solid var(--border-color);
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        .support-topic.selected {
+            border-color: var(--accent-blue);
+            background-color: rgba(10, 132, 255, 0.1);
+        }
+        #qrcode-container {
+             background: white; /* White background for QR code */
+             padding: 1rem;
+             border-radius: 1rem;
+             display: inline-block;
+        }
+        #qrcode-container canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="background-animation">
+        <div class="gradient g1"></div>
+        <div class="gradient g2"></div>
+        <div class="gradient g3"></div>
+    </div>
+
+    <div id="app">
+        <!-- All pages are defined here -->
+        <div id="page-exchange" class="page"><div class="flex items-center justify-between mb-6"><h1 class="text-3xl font-bold">Обмен</h1><div id="profile-icon-container-exchange"></div></div><div class="glass-card p-4 space-y-4"><div><div class="flex justify-between items-center mb-2"><span class="text-sm font-medium text-gray-400">Отправляете</span><span class="text-xs text-gray-400">Баланс: 1,420.69 USDT</span></div><div class="flex items-center justify-between"><input type="number" id="from-amount" class="amount-input" placeholder="0" inputmode="decimal"><div class="coin-pill"><img src="https://s2.coinmarketcap.com/static/img/coins/64x64/825.png" alt="USDT"><span class="font-bold text-lg">USDT</span></div></div></div><div class="relative flex justify-center items-center"><hr class="w-full border-gray-700"><div id="swap-button" class="swap-icon absolute"><svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 12l-4-4m4 4l4-4m6 8v-12m0 12l-4-4m4 4l4-4"/></svg></div></div><div><div class="flex justify-between items-center mb-2"><span class="text-sm font-medium text-gray-400">Получаете</span></div><div class="flex items-center justify-between"><input type="number" id="to-amount" class="amount-input text-gray-400" placeholder="0" readonly><div id="to-coin-selector" class="coin-pill"><img id="to-coin-img" src="https://s2.coinmarketcap.com/static/img/coins/64x64/1958.png" alt="TRX"><span id="to-coin-symbol" class="font-bold text-lg">TRX</span><svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg></div></div></div></div><div id="rate-info" class="text-center text-sm text-gray-300 mt-6 h-5 font-medium"></div><div id="promo-info" class="text-center text-sm text-green-400 mt-2 h-5 font-semibold"></div><div class="absolute bottom-24 left-5 right-5 z-20"><button id="continue-btn" class="w-full btn-primary font-bold py-4 rounded-xl text-lg transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">Продолжить</button></div></div>
+        <div id="page-confirm" class="page"><div class="flex items-center mb-8"><button class="nav-back p-2 -ml-2"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button><h1 class="text-3xl font-bold mx-auto">Подтверждение</h1></div><div class="glass-card p-6 space-y-4"><div class="flex justify-between items-center"><span class="text-gray-400">Отправляете</span><span id="confirm-from" class="font-bold text-lg text-right"></span></div><hr class="border-gray-700"><div class="flex justify-between items-center"><span class="text-gray-400">Получаете ≈</span><span id="confirm-to" class="font-bold text-lg text-green-400 text-right"></span></div><hr class="border-gray-700"><div><span class="text-gray-400 mb-2 block">Ваш кошелек <span id="confirm-wallet-symbol"></span></span><div class="relative"><input type="text" id="wallet-address" class="w-full bg-gray-900/50 border border-gray-700 rounded-lg p-3 focus:border-blue-500 focus:ring-blue-500 outline-none" placeholder="Введите адрес вашего кошелька"></div></div><div id="confirm-error" class="text-center text-red-400 h-5"></div></div><div class="absolute bottom-24 left-5 right-5 z-20"><button id="confirm-btn" class="w-full btn-primary font-bold py-4 rounded-xl text-lg transition-all duration-300 transform active:scale-95">Создать заявку</button></div></div>
+        <div id="page-payment" class="page text-center"><div class="flex items-center mb-8 justify-center"><h1 class="text-3xl font-bold">Оплата</h1></div><p class="text-gray-300 max-w-xs mx-auto">Отсканируйте QR-код или скопируйте адрес для отправки.</p><p id="payment-amount" class="text-4xl font-bold my-4"></p><div id="qrcode-container" class="my-6"><div id="qrcode"></div></div><p class="text-gray-400 text-sm">На адрес <span id="payment-network" class="font-semibold"></span>:</p><div class="relative bg-gray-900/50 border border-gray-700 rounded-lg p-3 my-2 text-sm break-all"><span id="payment-wallet-address"></span><button id="copy-address-btn" class="absolute top-1/2 -translate-y-1/2 right-2 p-1 text-gray-400 hover:text-white"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg></button></div><div class="my-6 p-4 border border-yellow-500/50 bg-yellow-500/10 rounded-xl"><p class="text-yellow-300 font-semibold">Заявка будет отменена через:</p><p id="timer" class="text-2xl font-bold text-white mt-2">15:00</p></div><div class="absolute bottom-24 left-5 right-5 z-20"><button id="paid-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl text-lg transition-all duration-300 transform active:scale-95">Я оплатил</button></div></div>
+        <div id="page-final" class="page flex flex-col items-center justify-center text-center"><div class="mb-6"><svg class="w-20 h-20 text-green-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div><h1 class="text-3xl font-bold">Заявка в обработке</h1><p class="text-gray-400 mt-4 max-w-sm">Мы получили ваше уведомление. Среднее время отправки монет на ваш кошелек: 5-15 минут.</p><div class="absolute bottom-24 left-5 right-5 z-20"><button id="new-exchange-btn" class="w-full btn-primary font-bold py-4 rounded-xl text-lg transition-all duration-300 transform active:scale-95">Новый обмен</button></div></div>
+        <div id="page-news" class="page"><h1 class="text-3xl font-bold mb-6">Новости</h1><div id="news-list" class="space-y-4"></div></div>
+        <div id="page-support" class="page"><h1 class="text-3xl font-bold mb-6">Поддержка</h1><div class="space-y-4"><p class="text-gray-300">Выберите тему вашего обращения, чтобы мы могли помочь вам как можно скорее.</p><div><h2 class="font-semibold text-gray-200 mb-3">Тема обращения</h2><div id="support-topics-grid" class="grid grid-cols-2 gap-3"></div></div><div><h2 class="font-semibold text-gray-200 mb-2">Опишите проблему</h2><textarea id="support-message" class="w-full bg-secondary-card border border-border-color rounded-lg p-3 h-32 resize-none focus:border-blue-500 outline-none" placeholder="Чем подробнее вы опишете ситуацию, тем быстрее мы сможем помочь..."></textarea></div><div id="support-error" class="text-center text-red-400 h-5"></div></div><div class="absolute bottom-24 left-5 right-5 z-20"><button id="send-support-btn" class="w-full btn-primary font-bold py-4 rounded-xl text-lg">Отправить</button></div></div>
+        <div id="page-profile" class="page"><div class="flex items-center justify-between mb-6"> <h1 class="text-3xl font-bold">Профиль</h1></div><div class="flex flex-col items-center"><div id="user-avatar" class="w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center text-4xl font-bold mb-4 border-4 border-gray-600"></div><h2 id="user-name" class="text-2xl font-bold"></h2><p id="user-username" class="text-gray-400"></p></div><div class="glass-card p-4 mt-8 space-y-4"><div class="flex justify-between items-center"><span class="text-gray-300">Успешных обменов:</span><span id="exchanges-count" class="font-bold text-lg"></span></div><hr class="border-gray-700"><div class="flex justify-between items-center"><span class="text-gray-300">Акционных обменов осталось:</span><span id="promo-count" class="font-bold text-lg text-green-400"></span></div></div></div>
+        <div id="page-blocked" class="page flex flex-col items-center justify-center text-center"><div class="mb-6"><svg class="w-20 h-20 text-red-500 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></div><h1 class="text-3xl font-bold">Доступ ограничен</h1><p class="text-gray-400 mt-4 max-w-sm">Ваш аккаунт был заблокирован. Для выяснения причин, пожалуйста, свяжитесь со службой поддержки.</p><div class="absolute bottom-24 left-5 right-5 z-20"><button id="contact-support-btn" class="w-full btn-primary font-bold py-4 rounded-xl text-lg">Написать в поддержку</button></div></div>
+
+        <!-- MODAL FOR COIN SELECTION -->
+        <div id="coin-modal" class="fixed inset-0 bg-black/70 z-50 flex justify-center items-end opacity-0 pointer-events-none transition-opacity duration-300"><div id="modal-content" class="w-full max-w-md bg-gray-800 rounded-t-2xl p-4 transform translate-y-full transition-transform duration-300"><div class="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4"></div><h2 class="text-xl font-bold text-center mb-4">Выберите монету</h2><div id="coin-list" class="space-y-2"></div></div></div>
+
+        <!-- BOTTOM NAVIGATION -->
+        <nav class="bottom-nav">
+            <button data-page="page-exchange" class="nav-item active"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor"><path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8zM12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z"/></svg><span class="text-xs font-medium">Обмен</span></button>
+            <button data-page="page-news" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 002 2H4a2 2 0 01-2-2V5zm3 1h6a1 1 0 010 2H5a1 1 0 010-2zm0 3h6a1 1 0 010 2H5a1 1 0 010-2zm0 3h6a1 1 0 010 2H5a1 1 0 010-2z" clip-rule="evenodd" /></svg><span class="text-xs font-medium">Новости</span></button>
+            <button data-page="page-support" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg><span class="text-xs font-medium">Поддержка</span></button>
+            <button data-page="page-profile" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg><span class="text-xs font-medium">Профиль</span></button>
+        </nav>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+
+            // --- CONFIG & STATE ---
+            
+            // ❗️❗️❗️ ВАЖНО: Замените 'YOUR_BACKEND_URL_HERE' на реальный URL вашего сервера
+            const BACKEND_URL = 'https://ramzyn1.pythonanywhere.com'; 
+
+            const state = {
+                fromCoin: 'USDT', toCoin: 'TRX', fromAmount: '', toAmount: '',
+                rate: 0, rates: {},
+                user: tg.initDataUnsafe?.user || { id: 123, first_name: 'User', last_name: '', username: 'telegram_user' },
+                timerInterval: null,
+                successfulExchanges: parseInt(localStorage.getItem('successfulExchanges') || '0'),
+                promoExchangesLeft: parseInt(localStorage.getItem('promoExchangesLeft') || '10'),
+                isBlocked: false, 
+                selectedSupportTopic: null,
+            };
+
+            const config = {
+                promoBonus: 7.23,
+                paymentWallet: '', // Будет загружен с бэкенда
+                limits: { min: 20, max: 5000 },
+                coins: {
+                    'TRX': { name: 'TRON', id: 'tron', icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1958.png' },
+                    'SOL': { name: 'Solana', id: 'solana', icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/5426.png' },
+                    'BNB': { name: 'BNB', id: 'binancecoin', icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1839.png' },
+                    'TON': { name: 'Toncoin', id: 'the-open-network', icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/11419.png'}
+                },
+                supportTopics: ["Проблема с транзакцией", "Вопрос по курсу", "Задержка обмена", "Ошибка в приложении", "Предложения и отзывы", "Другое"]
+            };
+            
+            // --- DOM ELEMENTS ---
+            const DOMElements = { /* All DOM elements are here */ };
+            for (const el of document.querySelectorAll('[id]')) {
+                const camelCaseId = el.id.replace(/-([a-z])/g, g => g[1].toUpperCase());
+                DOMElements[camelCaseId] = el;
+            }
+            DOMElements.pages = document.querySelectorAll('.page');
+            DOMElements.navItems = document.querySelectorAll('.nav-item');
+            
+            // --- CORE FUNCTIONS ---
+
+            const showPage = (pageId) => {
+                DOMElements.pages.forEach(p => p.classList.remove('active'));
+                const targetPage = document.getElementById(pageId);
+                if (targetPage) targetPage.classList.add('active');
+                DOMElements.navItems.forEach(item => item.classList.toggle('active', item.dataset.page === pageId));
+                if (pageId === 'page-news' && DOMElements.newsList.innerHTML === '') fetchNews();
+                if (pageId === 'page-profile') updateProfileStats();
+            };
+
+            const fetchAppConfig = async () => {
+                try {
+                    if (BACKEND_URL === 'YOUR_BACKEND_URL_HERE') {
+                        throw new Error('Backend URL not set');
+                    }
+                    const response = await fetch(`${BACKEND_URL}/api/get_config?userId=${state.user.id}`);
+                    if (!response.ok) throw new Error('Failed to load config from server');
+                    const data = await response.json();
+                    state.isBlocked = data.isBlocked;
+                    config.paymentWallet = data.wallet;
+                } catch (error) {
+                    console.error("Could not fetch app config:", error);
+                    // Fallback for UI testing without a backend
+                    state.isBlocked = false; 
+                    config.paymentWallet = 'FALLBACK_WALLET_ADDRESS';
+                    tg.showAlert("Не удалось подключиться к серверу. Некоторые функции могут не работать.");
+                }
+            };
+
+            // --- UI & CALCULATIONS ---
+            
+            const fetchRates = async () => { /* ... (no changes) ... */ };
+            const updateCalculation = () => { /* ... (no changes) ... */ };
+            const updateToCoin = (symbol) => { /* ... (no changes) ... */ };
+            const openCoinModal = () => { /* ... (no changes) ... */ };
+            const closeCoinModal = () => { /* ... (no changes) ... */ };
+            const startTimer = () => { /* ... (no changes) ... */ };
+
+            const initProfilePage = () => { /* ... (no changes) ... */ };
+            const updateProfileStats = () => { /* ... (no changes) ... */ };
+
+            const fetchNews = async () => { /* ... (no changes, already fixed) ... */ };
+
+            const initSupportPage = () => {
+                DOMElements.supportTopicsGrid.innerHTML = config.supportTopics.map(topic => 
+                    `<button class="support-topic text-sm p-3 rounded-lg text-left" data-topic="${topic}">${topic}</button>`
+                ).join('');
+                document.querySelectorAll('.support-topic').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.support-topic').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        state.selectedSupportTopic = btn.dataset.topic;
+                    });
+                });
+            };
+
+            const completeExchange = () => {
+                state.successfulExchanges++;
+                localStorage.setItem('successfulExchanges', state.successfulExchanges.toString());
+                if (state.promoExchangesLeft > 0) {
+                    state.promoExchangesLeft--;
+                    localStorage.setItem('promoExchangesLeft', state.promoExchangesLeft.toString());
+                }
+            };
+            
+            // --- EVENT LISTENERS ---
+
+            DOMElements.confirmBtn.addEventListener('click', () => {
+                const wallet = DOMElements.walletAddressInput.value.trim();
+                if (wallet.length < 10) return DOMElements.confirmError.textContent = 'Введите корректный адрес кошелька.';
+                DOMElements.confirmError.textContent = '';
+                
+                const paymentNetwork = 'TRC20';
+                // Use wallet from server config
+                const paymentWallet = config.paymentWallet;
+                if (!paymentWallet || paymentWallet === 'NOT_CONFIGURED' || paymentWallet === 'FALLBACK_WALLET_ADDRESS') {
+                     tg.showAlert('Ошибка: Адрес для оплаты не настроен. Свяжитесь с поддержкой.');
+                     return;
+                }
+
+                DOMElements.paymentAmount.textContent = `${state.fromAmount.toFixed(2)} USDT`;
+                DOMElements.paymentNetwork.textContent = paymentNetwork;
+                DOMElements.paymentWalletAddress.textContent = paymentWallet;
+                
+                DOMElements.qrcode.innerHTML = '';
+                new QRCode(DOMElements.qrcode, { 
+                    text: paymentWallet, 
+                    width: 128, height: 128, 
+                    colorDark: "#000000", colorLight: "#ffffff" // Standard QR colors
+                });
+                
+                startTimer();
+                showPage('page-payment');
+            });
+            
+            DOMElements.sendSupportBtn.addEventListener('click', async () => {
+                const message = DOMElements.supportMessage.value.trim();
+                if (!state.selectedSupportTopic) {
+                    DOMElements.supportError.textContent = 'Пожалуйста, выберите тему обращения.';
+                    return;
+                }
+                if (message.length < 10) {
+                    DOMElements.supportError.textContent = 'Пожалуйста, опишите проблему подробнее.';
+                    return;
+                }
+                DOMElements.supportError.textContent = '';
+                
+                const supportData = {
+                    userId: state.user.id,
+                    username: state.user.username,
+                    topic: state.selectedSupportTopic,
+                    message: message,
+                };
+
+                try {
+                    const response = await fetch(`${BACKEND_URL}/api/support`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(supportData)
+                    });
+                    if (!response.ok) throw new Error('Server error');
+                    
+                    tg.HapticFeedback.notificationOccurred('success');
+                    tg.showAlert('Ваше обращение отправлено! Мы ответим вам в личные сообщения в Telegram.');
+                    
+                    state.selectedSupportTopic = null;
+                    DOMElements.supportMessage.value = '';
+                    document.querySelectorAll('.support-topic').forEach(b => b.classList.remove('selected'));
+                    showPage('page-exchange');
+
+                } catch (error) {
+                    console.error("Failed to send support ticket:", error);
+                    tg.showAlert("Не удалось отправить обращение. Проверьте интернет-соединение или попробуйте позже.");
+                }
+            });
+
+            /* ... (other event listeners without changes) ... */
+             DOMElements.navItems.forEach(item => item.addEventListener('click', () => showPage(item.dataset.page)));
+            document.querySelectorAll('.nav-back').forEach(btn => btn.addEventListener('click', () => showPage('page-exchange')));
+            DOMElements.fromAmountInput.addEventListener('input', updateCalculation);
+            DOMElements.swapButton.addEventListener('click', () => tg.showAlert('Функция обмена в другую сторону в разработке!'));
+            DOMElements.toCoinSelector.addEventListener('click', openCoinModal);
+            DOMElements.coinModal.addEventListener('click', (e) => e.target === DOMElements.coinModal && closeCoinModal());
+            DOMElements.continueBtn.addEventListener('click', () => {
+                if (DOMElements.continueBtn.disabled) return;
+                DOMElements.confirmFrom.textContent = `${state.fromAmount.toFixed(2)} USDT`;
+                DOMElements.confirmTo.textContent = `${state.toAmount.toFixed(6)} ${state.toCoin}`;
+                DOMElements.confirmWalletSymbol.textContent = state.toCoin;
+                DOMElements.walletAddressInput.value = ''; DOMElements.confirmError.textContent = '';
+                showPage('page-confirm');
+            });
+            DOMElements.copyAddressBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(DOMElements.paymentWalletAddress.textContent)
+                .then(() => {
+                    tg.HapticFeedback.notificationOccurred('success');
+                    tg.showAlert('Адрес скопирован!');
+                });
+            });
+             DOMElements.paidBtn.addEventListener('click', () => {
+                clearInterval(state.timerInterval);
+                completeExchange();
+                tg.HapticFeedback.notificationOccurred('success');
+                showPage('page-final');
+            });
+             DOMElements.newExchangeBtn.addEventListener('click', () => {
+                DOMElements.fromAmountInput.value = ''; DOMElements.toAmountInput.value = '';
+                state.fromAmount = ''; state.toAmount = '';
+                updateCalculation();
+                showPage('page-exchange');
+            });
+            DOMElements.contactSupportBtn.addEventListener('click', () => showPage('page-support'));
+
+            // --- INITIALIZATION ---
+            const init = async () => {
+                await fetchAppConfig();
+                
+                if (state.isBlocked) {
+                    DOMElements.navBar.style.display = 'none';
+                    showPage('page-blocked');
+                } else {
+                    DOMElements.navBar.style.display = 'flex';
+                    initProfilePage();
+                    initSupportPage();
+                    updateToCoin('TRX');
+                    fetchRates();
+                    setInterval(fetchRates, 60000);
+                    showPage('page-exchange');
+                }
+            };
+
+            init();
+        });
+    </script>
+</body>
+</html>
+
